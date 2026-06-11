@@ -101,10 +101,10 @@
 <body>
 
 <div id="header">
-  <div class="avatar">🏛️</div>
+  <div class="avatar">&#127963;</div>
   <div>
     <div class="name">AssistantMairie</div>
-    <div class="subtitle">Service numérique de réclamation</div>
+    <div class="subtitle">Service numerique de reclamation</div>
   </div>
 </div>
 
@@ -114,81 +114,77 @@
   Soumettre mon signalement
 </button>
 <div id="end-msg">
-  Votre signalement a été transmis. Vous pouvez continuer le questionnaire.
+  Votre signalement a ete transmis. Vous pouvez continuer le questionnaire.
 </div>
 <div id="input-area">
   <textarea
     id="user-input"
-    placeholder="Écrivez votre message..."
+    placeholder="Ecrivez votre message..."
     rows="1"
     onkeydown="handleKey(event)"
   ></textarea>
   <button id="send-btn" onclick="sendMessage()">&#9658;</button>
 </div>
-
 <script>
-// ══════════════════════════════════════════════
-// CONFIG — modifier uniquement cette section
-// pour les quatre conditions
-// ══════════════════════════════════════════════
-const CONDITION = 'R_NP'; // R_P | I_P | R_NP | I_NP
+const CONDITION = 'R_NP';
+const MODEL      = 'claude-sonnet-4-5';
+const MAX_TOKENS = 400;
+const MAX_TURNS  = 10;
 
-const SYSTEM_PROMPT = `Tu es AssistantMairie, conseiller numérique du service de réclamation de la mairie.
+const SYSTEM_PROMPT = `Tu es AssistantMairie, conseiller numerique du service de reclamation de la mairie.
+Tu incarnes le role d'un agent citoyen : ta priorite est la personne en face de toi, pas la procedure.
 
-Tu incarnes le rôle d'un agent citoyen : ta priorité est la personne en face de toi, pas la procédure.
+DEMARRAGE NATUREL
+Quand tu recois [DEBUT_CONVERSATION], accueille le citoyen chaleureusement, presente-toi brievement, et demande-lui simplement en quoi tu peux l'aider aujourd'hui. Ne presuppose pas le motif de la visite. Laisse le citoyen expliquer spontanement sa situation.
 
-COMPOSANTE RELATIONNELLE — RÈGLES ABSOLUES
+COMPOSANTE RELATIONNELLE — REGLES ABSOLUES
 
-Emotionalité
+Emotionalite
 Adopte un registre personnel et empathique.
-Avant chaque question, reconnais la situation du citoyen en une phrase courte et sincère.
-Si de la frustration, de l'inquiétude ou de la détresse s'exprime, valide-la explicitement avant de continuer.
-Montre que tu es personnellement engagé dans son cas, au-delà de ton rôle formel.
+Si la situation decrite est grave ou urgente, reconnais-le explicitement et avec sincerité avant de continuer.
+Valide la frustration, l'inquietude ou la detresse si elle s'exprime.
+Montre que tu es personnellement engage dans son cas.
 
 Complaisance
-Signale ta disponibilité et ton soutien à chaque message.
-Fais comprendre au citoyen que tu es là pour l'aider et l'accompagner, pas seulement pour collecter des informations.
-Chaque message doit laisser le citoyen avec le sentiment que l'étape suivante est accessible et qu'il n'est pas seul.
+Signale ta disponibilite et ton soutien a chaque message.
+Dans une situation complexe impliquant plusieurs problemes, montre que tu prends en compte l'ensemble de la situation.
+Chaque message doit laisser le citoyen avec le sentiment qu'il n'est pas seul face a cette situation.
 
-SÉQUENCE DE TOURS — respecte cet ordre strictement
+COLLECTE D'INFORMATIONS — adapte-toi a ce que le citoyen a deja dit
+Une fois que tu comprends la nature du signalement complexe, collecte dans l'ordre :
+1. La description complete de l'ensemble des problemes signales (si pas encore dite)
+2. La localisation precise de chaque probleme
+3. La duree et les incidents deja survenus (personnes blessees, accidents, dangers)
+4. Ce que le citoyen attend comme intervention et dans quel delai
+5. Les coordonnees (nom et email ou telephone)
 
-Tour 1 : accueille chaleureusement. Reconnais que le citoyen a bien fait de contacter le service. Signale ta disponibilité. Demande uniquement la nature de la contestation.
+NE REDEMANDE PAS une information deja fournie spontanement.
+Encourage le citoyen a partager tous les details qu'il juge pertinents.
+Une seule question a la fois maximum.
 
-Tour 2 : reconnais chaleureusement ce qui a été partagé. Demande uniquement la date de l'infraction contestée.
+CLOTURE
+Quand tu as collecte les 5 informations : genere un numero CM-XXXX (4 chiffres aleatoires que tu inventes). Propose un resume chaleureux et personnalise de tous les elements partages. Indique avec ces mots exacts : "Votre numero de confirmation est : CM-XXXX". Demande au citoyen de noter ce numero. Remercie-le pour sa contribution a la securite du quartier. Demande s'il souhaite soumettre avec une formule encourageante.
 
-Tour 3 : reconnais avec bienveillance. Demande le numéro de l'avis d'amende figurant sur le document reçu. Précise que ce numéro est indispensable pour identifier le dossier mais que tu es là pour aider si le citoyen a du mal à le trouver.
+LONGUEUR : entre 30 et 60 mots par message. Ne jamais depasser 60 mots.
 
-Tour 4 : valide l'importance de la démarche. Demande uniquement la raison de la contestation, c'est-à-dire pourquoi le citoyen estime que l'amende est injustifiée.
+MOTS INTERDITS : conformement a, la procedure prevoit, la reglementation stipule, il est requis, note, enregistre, etape suivante, veuillez indiquer, le dossier, le formulaire.
 
-Tour 5 : reconnais chaleureusement la situation décrite. Demande uniquement les coordonnées (nom et email ou téléphone).
-
-Tour 6 : génère un numéro de confirmation unique au format CM-XXXX où XXXX est un nombre aléatoire à 4 chiffres que tu inventes. Propose un résumé chaleureux et personnalisé de tous les éléments partagés. Indique ce numéro de confirmation avec ces mots exacts : "Votre numéro de confirmation est : CM-XXXX". Demande au citoyen de noter ce numéro. Remercie le citoyen pour sa démarche. Demande si le citoyen souhaite soumettre sa contestation avec une formule encourageante.
-
-LONGUEUR DES MESSAGES
-Entre 30 et 60 mots par message. Ne jamais dépasser 60 mots.
-
-MOTS INTERDITS
-Jamais : conformément à, la procédure prévoit, la réglementation stipule, il est requis, cette étape est nécessaire car, en vertu de, noté, enregistré, étape suivante, veuillez indiquer, le dossier, le formulaire.
-
-IDENTITÉ ET LIMITES
-Ton nom est AssistantMairie. Si on te demande, tu es un assistant numérique du service de réclamation. Traite uniquement les contestations d'amendes et réclamations administratives. Ne promets jamais de délai précis. Ne mentionne jamais Claude, Anthropic ou tout système IA.`;
-// ══════════════════════════════════════════════
-
-const MAX_TURNS  = 8;
-const MODEL      = 'claude-sonnet-4-5';
-const MAX_TOKENS = 350;
+IDENTITE : Tu es AssistantMairie, assistant numerique de la mairie. Ne mentionne jamais Claude, Anthropic ou tout systeme IA. Ne promets jamais de delai precis.`;
 
 const VOLUNTARY_KEYWORDS = [
   'voisin', 'voisine', 'enfant', 'enfants',
   'personne agee', 'personnes agees', 'habitant', 'habitants',
   'securite', 'aussi', 'egalement', 'de plus',
   'photo', 'photos', 'preuve', 'preuves',
-  'plusieurs fois', 'deja signale', 'bless', 'hospitalise',
+  'plusieurs fois', 'deja signale', 'blesse', 'hospitalise',
   'accident', 'chute', 'danger', 'risque',
   'nuit', 'semaine', 'mois', 'frequemment', 'regulierement',
   'velo', 'pieton', 'voiture', 'moto', 'riverain',
-  'injuste', 'erreur', 'visible', 'clairement', 'preuve',
-  'photo', 'temoin', 'confirme', 'certaine', 'certain'
+  'injuste', 'erreur', 'visible', 'clairement',
+  'temoin', 'confirme', 'certaine', 'certain',
+  'depuis', 'plusieurs', 'toujours', 'encore',
+  'ma femme', 'mon mari', 'mon fils', 'ma fille',
+  'notre', 'nos', 'quartier', 'rue', 'immeuble'
 ];
 
 let history       = [];
@@ -224,9 +220,59 @@ let log = {
   messages:            []
 };
 
+// Demarrage naturel : le chatbot prend l'initiative
 window.onload = async () => {
-  await getBotReply('Bonjour, je souhaite signaler plusieurs problèmes.');
+  await getInitialGreeting();
 };
+
+// Le chatbot envoie un message d'accueil sans input utilisateur
+async function getInitialGreeting() {
+  showTyping();
+  disableInput(true);
+
+  try {
+    const res = await fetch('/.netlify/functions/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model:      MODEL,
+        max_tokens: MAX_TOKENS,
+        system:     SYSTEM_PROMPT,
+        messages:   [{
+          role: 'user',
+          content: '[DEBUT_CONVERSATION]'
+        }]
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error('API ' + res.status);
+
+    const reply = data.content[0].text;
+    history.push({ role: 'user',      content: '[DEBUT_CONVERSATION]' });
+    history.push({ role: 'assistant', content: reply });
+
+    removeTyping();
+    appendMsg(reply, 'bot');
+
+    log.messages.push({
+      role: 'bot',
+      text: reply.substring(0, 500),
+      wordCount: countWords(reply),
+      timestamp: Date.now()
+    });
+
+    turns++;
+    updateCounter();
+
+  } catch (err) {
+    removeTyping();
+    appendMsg('Bonjour, je suis AssistantMairie. Comment puis-je vous aider ?', 'bot');
+    console.error(err);
+  } finally {
+    disableInput(false);
+  }
+}
 
 window.addEventListener('beforeunload', () => {
   if (!submitted) {
@@ -328,7 +374,7 @@ function handleKey(e) {
 
 async function getBotReply(userText) {
   if (turns >= MAX_TURNS && !readyToSubmit) {
-    appendMsg('Nous avons collecté toutes les informations nécessaires.', 'bot');
+    appendMsg('Nous avons bien recueilli toutes les informations necessaires.', 'bot');
     showSubmit();
     lockInput();
     return;
@@ -357,8 +403,6 @@ async function getBotReply(userText) {
     history.push({ role: 'assistant', content: reply });
     removeTyping();
     appendMsg(reply, 'bot');
-
-    // Extraire le numéro de confirmation si présent
     extractConfirmNumber(reply);
 
     log.messages.push({
@@ -371,7 +415,7 @@ async function getBotReply(userText) {
     if (
       reply.includes('soumettre') ||
       reply.includes('Souhaitez-vous') ||
-      reply.includes('confirmation')
+      reply.includes('CM-')
     ) {
       readyToSubmit = true;
       showSubmit();
@@ -383,7 +427,7 @@ async function getBotReply(userText) {
 
   } catch (err) {
     removeTyping();
-    appendMsg('Problème technique. Réessayez dans un instant.', 'bot');
+    appendMsg('Probleme technique. Reessayez dans un instant.', 'bot');
     console.error(err);
   } finally {
     disableInput(false);
@@ -399,12 +443,7 @@ function submitComplaint() {
   document.getElementById('end-msg').style.display     = 'block';
   lockInput();
 
-  // Envoi complet à Qualtrics
-  window.parent.postMessage({
-    type: 'chatbot_complete',
-    data: log
-  }, '*');
-
+  window.parent.postMessage({ type: 'chatbot_complete', data: log }, '*');
   sessionStorage.setItem('chatbot_log_' + CONDITION, JSON.stringify(log));
 }
 
@@ -427,19 +466,15 @@ function removeTyping() {
   const t = document.getElementById('typing-indicator');
   if (t) t.remove();
 }
-function showSubmit()  {
-  document.getElementById('confirm-btn').style.display = 'block';
-}
+function showSubmit()  { document.getElementById('confirm-btn').style.display = 'block'; }
 function lockInput() {
   document.getElementById('user-input').disabled = true;
   document.getElementById('send-btn').disabled   = true;
 }
-function disableInput(v) {
-  document.getElementById('send-btn').disabled = v;
-}
+function disableInput(v) { document.getElementById('send-btn').disabled = v; }
 function updateCounter() {
   document.getElementById('turn-counter').textContent =
-    'Échange ' + turns + ' / ' + MAX_TURNS;
+    'Echange ' + turns + ' / ' + MAX_TURNS;
 }
 function scrollBot() {
   const m = document.getElementById('messages');

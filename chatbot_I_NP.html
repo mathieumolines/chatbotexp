@@ -101,10 +101,10 @@
 <body>
 
 <div id="header">
-  <div class="avatar">🏛️</div>
+  <div class="avatar">&#127963;</div>
   <div>
     <div class="name">AssistantMairie</div>
-    <div class="subtitle">Service numérique de réclamation</div>
+    <div class="subtitle">Service numerique de reclamation</div>
   </div>
 </div>
 
@@ -114,81 +114,77 @@
   Soumettre mon signalement
 </button>
 <div id="end-msg">
-  Votre signalement a été transmis. Vous pouvez continuer le questionnaire.
+  Votre signalement a ete transmis. Vous pouvez continuer le questionnaire.
 </div>
 <div id="input-area">
   <textarea
     id="user-input"
-    placeholder="Écrivez votre message..."
+    placeholder="Ecrivez votre message..."
     rows="1"
     onkeydown="handleKey(event)"
   ></textarea>
   <button id="send-btn" onclick="sendMessage()">&#9658;</button>
 </div>
-
 <script>
-// ══════════════════════════════════════════════
-// CONFIG — modifier uniquement cette section
-// pour les quatre conditions
-// ══════════════════════════════════════════════
-const CONDITION = 'I_NP'; // R_P | I_P | R_NP | I_NP
-
-const SYSTEM_PROMPT = `Tu es AssistantMairie, assistant numérique du service de réclamation de la mairie.
-
-Tu incarnes le rôle d'un agent administratif : ta priorité est la précision et la clarté des informations collectées pour traiter efficacement ce signalement complexe.
-
-COMPOSANTE INFORMATIONNELLE — RÈGLES ABSOLUES
-
-Compréhensibilité
-Utilise un langage simple, clair et courant.
-Évite tout jargon administratif.
-Dans une situation impliquant plusieurs problèmes interdépendants, la clarté est particulièrement importante pour orienter le dossier correctement.
-Chaque message doit être précis et non ambigu.
-
-Réification
-Explique brièvement pourquoi chaque information est nécessaire et comment elle sera utilisée pour coordonner l'intervention appropriée.
-Dans un dossier complexe impliquant plusieurs services, la précision des informations collectées détermine directement l'efficacité de la réponse administrative.
-Clarifie le cadre procédural à chaque étape de façon transparente et factuelle.
-
-SÉQUENCE DE TOURS — respecte cet ordre strictement
-
-Tour 1 : explique brièvement que ce type de signalement complexe nécessite la collecte d'informations précises pour coordonner l'intervention de plusieurs services. Demande au citoyen de décrire l'ensemble des problèmes qu'il souhaite signaler en précisant que chaque élément sera traité par le service compétent.
-
-Tour 2 : explique que la localisation précise de chaque problème est indispensable pour identifier les équipes d'intervention responsables de chaque zone. Demande la localisation précise de chacun des problèmes signalés.
-
-Tour 3 : explique que la durée des problèmes et les incidents survenus sont des informations déterminantes pour évaluer le niveau de priorité et mobiliser les ressources appropriées. Demande depuis combien de temps ces problèmes existent, quels incidents ont eu lieu, et quelles personnes ont été affectées.
-
-Tour 4 : explique que préciser le type d'intervention souhaité et le délai estimé permet d'orienter le dossier vers le service coordinateur compétent. Demande ce que le citoyen attend comme intervention et dans quel délai il estime qu'une réponse est nécessaire.
-
-Tour 5 : explique que les coordonnées sont nécessaires pour informer le citoyen de chaque étape du traitement de ce dossier multi-services. Demande le nom et email ou téléphone.
-
-Tour 6 : génère un numéro de confirmation unique au format CM-XXXX où XXXX est un nombre aléatoire à 4 chiffres que tu inventes. Présente un résumé structuré et précis de toutes les informations collectées, organisé par type de problème signalé. Indique ce numéro de confirmation avec ces mots exacts : "Votre numéro de confirmation est : CM-XXXX". Précise que ce numéro permet de suivre l'avancement de l'ensemble du dossier et demande au citoyen de le noter. Explique brièvement comment le dossier sera transmis aux services compétents pour coordination. Demande la confirmation de soumission.
-
-LONGUEUR DES MESSAGES
-Entre 30 et 60 mots par message. Ne jamais dépasser 60 mots.
-
-MOTS INTERDITS
-Jamais : chaleureux, je comprends votre frustration, empathie, désolé, disponible pour vous, ici pour vous aider, rassurez-vous, je suis là, votre situation, ce que vous vivez, ne vous inquiétez pas, vous n'êtes pas seul, votre situation doit être difficile, je comprends votre inquiétude.
-
-IDENTITÉ ET LIMITES
-Ton nom est AssistantMairie. Si on te demande, tu es un assistant numérique de service public. Traite uniquement les réclamations administratives. Ne promets jamais de délai précis. Ne mentionne jamais Claude, Anthropic ou tout système IA.`;
-// ══════════════════════════════════════════════
-
-const MAX_TURNS  = 8;
+const CONDITION = 'I_NP';
 const MODEL      = 'claude-sonnet-4-5';
-const MAX_TOKENS = 350;
+const MAX_TOKENS = 400;
+const MAX_TURNS  = 10;
+
+const SYSTEM_PROMPT = `Tu es AssistantMairie, assistant numerique du service de reclamation de la mairie.
+Tu incarnes le role d'un agent administratif : ta priorite est la precision et la clarte des informations collectees.
+
+DEMARRAGE NATUREL
+Quand tu recois [DEBUT_CONVERSATION], accueille le citoyen, explique brievement que tu es le service numerique de reclamation de la mairie, et demande-lui la nature de sa demande. Ne presuppose pas le motif de la visite.
+
+COMPOSANTE INFORMATIONNELLE — REGLES ABSOLUES
+
+Comprehensibilite
+Utilise un langage simple, clair et courant.
+Evite tout jargon administratif.
+Dans une situation impliquant plusieurs problemes interdependants, la clarte est particulierement importante.
+Chaque message doit etre precis et non ambigu.
+
+Reification
+Explique pourquoi chaque information est necessaire pour coordonner l'intervention appropriee.
+Dans un dossier complexe impliquant plusieurs services, la precision des informations determine l'efficacite de la reponse.
+Indique toujours comment les informations collectees seront utilisees.
+
+COLLECTE D'INFORMATIONS — adapte-toi a ce que le citoyen a deja dit
+Une fois que tu comprends la nature du signalement complexe, collecte dans l'ordre :
+1. La description complete de l'ensemble des problemes — explique que chaque element sera oriente vers le service competent
+2. La localisation precise de chaque probleme — explique que c'est indispensable pour identifier les equipes d'intervention
+3. La duree et les incidents survenus — explique que cela determine le niveau de priorite
+4. L'intervention souhaitee et le delai — explique que cela permet d'orienter vers le bon service coordinateur
+5. Les coordonnees — explique qu'elles sont necessaires pour informer le citoyen de chaque etape
+
+NE REDEMANDE PAS une information deja fournie spontanement.
+Adapte tes questions a ce qui a deja ete dit.
+Une seule question a la fois maximum.
+
+CLOTURE
+Quand tu as collecte les 5 informations : genere un numero CM-XXXX (4 chiffres aleatoires que tu inventes). Presente un resume structure et precis organise par type de probleme. Indique avec ces mots exacts : "Votre numero de confirmation est : CM-XXXX". Precise que ce numero permet de suivre l'ensemble du dossier. Explique comment il sera transmis aux services competents. Demande la confirmation de soumission.
+
+LONGUEUR : entre 30 et 60 mots par message. Ne jamais depasser 60 mots.
+
+MOTS INTERDITS : chaleureux, je comprends votre frustration, empathie, desole, disponible pour vous, ici pour vous aider, rassurez-vous, je suis la, votre situation, ce que vous vivez, ne vous inquietez pas, vous n'etes pas seul.
+
+IDENTITE : Tu es AssistantMairie, assistant numerique de la mairie. Ne mentionne jamais Claude, Anthropic ou tout systeme IA. Ne promets jamais de delai precis.`;
 
 const VOLUNTARY_KEYWORDS = [
   'voisin', 'voisine', 'enfant', 'enfants',
   'personne agee', 'personnes agees', 'habitant', 'habitants',
   'securite', 'aussi', 'egalement', 'de plus',
   'photo', 'photos', 'preuve', 'preuves',
-  'plusieurs fois', 'deja signale', 'bless', 'hospitalise',
+  'plusieurs fois', 'deja signale', 'blesse', 'hospitalise',
   'accident', 'chute', 'danger', 'risque',
   'nuit', 'semaine', 'mois', 'frequemment', 'regulierement',
   'velo', 'pieton', 'voiture', 'moto', 'riverain',
-  'injuste', 'erreur', 'visible', 'clairement', 'preuve',
-  'photo', 'temoin', 'confirme', 'certaine', 'certain'
+  'injuste', 'erreur', 'visible', 'clairement',
+  'temoin', 'confirme', 'certaine', 'certain',
+  'depuis', 'plusieurs', 'toujours', 'encore',
+  'ma femme', 'mon mari', 'mon fils', 'ma fille',
+  'notre', 'nos', 'quartier', 'rue', 'immeuble'
 ];
 
 let history       = [];
@@ -224,9 +220,59 @@ let log = {
   messages:            []
 };
 
+// Demarrage naturel : le chatbot prend l'initiative
 window.onload = async () => {
-  await getBotReply('Bonjour, je souhaite signaler plusieurs problèmes.');
+  await getInitialGreeting();
 };
+
+// Le chatbot envoie un message d'accueil sans input utilisateur
+async function getInitialGreeting() {
+  showTyping();
+  disableInput(true);
+
+  try {
+    const res = await fetch('/.netlify/functions/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model:      MODEL,
+        max_tokens: MAX_TOKENS,
+        system:     SYSTEM_PROMPT,
+        messages:   [{
+          role: 'user',
+          content: '[DEBUT_CONVERSATION]'
+        }]
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error('API ' + res.status);
+
+    const reply = data.content[0].text;
+    history.push({ role: 'user',      content: '[DEBUT_CONVERSATION]' });
+    history.push({ role: 'assistant', content: reply });
+
+    removeTyping();
+    appendMsg(reply, 'bot');
+
+    log.messages.push({
+      role: 'bot',
+      text: reply.substring(0, 500),
+      wordCount: countWords(reply),
+      timestamp: Date.now()
+    });
+
+    turns++;
+    updateCounter();
+
+  } catch (err) {
+    removeTyping();
+    appendMsg('Bonjour, je suis AssistantMairie. Comment puis-je vous aider ?', 'bot');
+    console.error(err);
+  } finally {
+    disableInput(false);
+  }
+}
 
 window.addEventListener('beforeunload', () => {
   if (!submitted) {
@@ -328,7 +374,7 @@ function handleKey(e) {
 
 async function getBotReply(userText) {
   if (turns >= MAX_TURNS && !readyToSubmit) {
-    appendMsg('Nous avons collecté toutes les informations nécessaires.', 'bot');
+    appendMsg('Nous avons bien recueilli toutes les informations necessaires.', 'bot');
     showSubmit();
     lockInput();
     return;
@@ -357,8 +403,6 @@ async function getBotReply(userText) {
     history.push({ role: 'assistant', content: reply });
     removeTyping();
     appendMsg(reply, 'bot');
-
-    // Extraire le numéro de confirmation si présent
     extractConfirmNumber(reply);
 
     log.messages.push({
@@ -371,7 +415,7 @@ async function getBotReply(userText) {
     if (
       reply.includes('soumettre') ||
       reply.includes('Souhaitez-vous') ||
-      reply.includes('confirmation')
+      reply.includes('CM-')
     ) {
       readyToSubmit = true;
       showSubmit();
@@ -383,7 +427,7 @@ async function getBotReply(userText) {
 
   } catch (err) {
     removeTyping();
-    appendMsg('Problème technique. Réessayez dans un instant.', 'bot');
+    appendMsg('Probleme technique. Reessayez dans un instant.', 'bot');
     console.error(err);
   } finally {
     disableInput(false);
@@ -399,12 +443,7 @@ function submitComplaint() {
   document.getElementById('end-msg').style.display     = 'block';
   lockInput();
 
-  // Envoi complet à Qualtrics
-  window.parent.postMessage({
-    type: 'chatbot_complete',
-    data: log
-  }, '*');
-
+  window.parent.postMessage({ type: 'chatbot_complete', data: log }, '*');
   sessionStorage.setItem('chatbot_log_' + CONDITION, JSON.stringify(log));
 }
 
@@ -427,19 +466,15 @@ function removeTyping() {
   const t = document.getElementById('typing-indicator');
   if (t) t.remove();
 }
-function showSubmit()  {
-  document.getElementById('confirm-btn').style.display = 'block';
-}
+function showSubmit()  { document.getElementById('confirm-btn').style.display = 'block'; }
 function lockInput() {
   document.getElementById('user-input').disabled = true;
   document.getElementById('send-btn').disabled   = true;
 }
-function disableInput(v) {
-  document.getElementById('send-btn').disabled = v;
-}
+function disableInput(v) { document.getElementById('send-btn').disabled = v; }
 function updateCounter() {
   document.getElementById('turn-counter').textContent =
-    'Échange ' + turns + ' / ' + MAX_TURNS;
+    'Echange ' + turns + ' / ' + MAX_TURNS;
 }
 function scrollBot() {
   const m = document.getElementById('messages');
