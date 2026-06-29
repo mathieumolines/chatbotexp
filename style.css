@@ -1,0 +1,178 @@
+/* Warm Machines — shared chatbot logic (identical for all 8 conditions).
+   Per-page, only window.WM_GROUPE and window.WM_SYSTEM_PROMPT differ.
+
+   What this does:
+   - Opens with Tour 1 automatically (sends a hidden "[DÉBUT]" trigger).
+   - Relays participant messages to the Netlify function /.netlify/functions/chat
+     which holds the API key server-side.
+   - Captures behavioural coproduction metrics (word count, turns, duration).
+   - Detects the confirmation number CM-G{n}-XXXX and marks the encounter complete.
+   - Sends data to the parent Qualtrics survey via postMessage after every
+     assistant reply, so partial progress is always saved (robust to abandonment).
+*/
+
+(function () {
+  "use strict";
+
+  var GROUPE = window.WM_GROUPE;
+  var SYSTEM_PROMPT = window.WM_SYSTEM_PROMPT;
+  var API_URL = "/.netlify/functions/chat";
+
+  // ---- state ----
+  var messages = [];          // full API history [{role, content}]
+  var participantTurns = [];   // only human-typed messages (for metrics)
+  var startTime = Date.now();
+  var completed = false;
+  var confirmation = "";
+  var CM_REGEX = /CM-G\d-\d{4}/; // confirmation pattern
+
+  // ---- DOM ----
+  var elMessages = document.getElementById("wm-messages");
+  var elForm = document.getElementById("wm-form");
+  var elInput = document.getElementById("wm-input");
+  var elSend = document.getElementById("wm-send");
+  var elBanner = document.getElementById("wm-banner");
+
+  // ---- helpers ----
+  function addBubble(text, who) {
+    var div = document.createElement("div");
+    div.className = "wm-msg " + who;
+    div.textContent = text;
+    elMessages.appendChild(div);
+    elMessages.scrollTop = elMessages.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    var div = document.createElement("div");
+    div.className = "wm-typing";
+    div.textContent = "AssistantMairie écrit\u2026";
+    div.id = "wm-typing";
+    elMessages.appendChild(div);
+    elMessages.scrollTop = elMessages.scrollHeight;
+  }
+  function hideTyping() {
+    var t = document.getElementById("wm-typing");
+    if (t) t.remove();
+  }
+
+  function countWords(s) {
+    var m = (s || "").trim().match(/\S+/g);
+    return m ? m.length : 0;
+  }
+
+  function metrics() {
+    var totalWords = participantTurns.reduce(function (a, t) { return a + countWords(t); }, 0);
+    var n = participantTurns.length;
+    return {
+      totalWords: totalWords,
+      numTurns: n,
+      meanWordsPerTurn: n ? Math.round((totalWords / n) * 100) / 100 : 0,
+      durationSeconds: Math.round((Date.now() - startTime) / 1000)
+    };
+  }
+
+  // Transcript excludes the hidden "[DÉBUT]" trigger so offline coding is clean.
+  function transcript() {
+    return messages.filter(function (m) { return m.content !== "[DÉBUT]"; });
+  }
+
+  function sendToQualtrics() {
+    var k = metrics();
+    var payload = {
+      type: "chatbot_data",
+      groupe: GROUPE,
+      chatbotConfirmation: confirmation,
+      totalWords: k.totalWords,
+      numTurns: k.numTurns,
+      meanWordsPerTurn: k.meanWordsPerTurn,
+      durationSeconds: k.durationSeconds,
+      // Placeholders to compute offline from the transcript (kept simple here):
+      voluntaryInfo: 0,
+      richnessScore: 0,
+      completed: completed,
+      abandoned: false,
+      transcript: JSON.stringify(transcript())
+    };
+    try { window.parent.postMessage(payload, "*"); } catch (e) { /* ignore */ }
+  }
+
+  function lockInput() {
+    elInput.disabled = true;
+    elSend.disabled = true;
+    elInput.placeholder = "Interaction terminée.";
+  }
+
+  function showClosingBanner() {
+    elBanner.textContent =
+      "Merci. Votre signalement est enregistré. Vous pouvez maintenant revenir au questionnaire " +
+      "et saisir votre numéro de confirmation : " + confirmation;
+    elBanner.classList.remove("wm-hidden");
+  }
+
+  // ---- core: call the model ----
+  function callModel() {
+    showTyping();
+    elSend.disabled = true;
+    return fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system: SYSTEM_PROMPT, messages: messages })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        hideTyping();
+        var text = (data && data.text) ? data.text : "Désolé, une erreur est survenue. Veuillez réessayer.";
+        messages.push({ role: "assistant", content: text });
+        addBubble(text, "bot");
+
+        // detect confirmation number
+        var match = text.match(CM_REGEX);
+        if (match && !completed) {
+          completed = true;
+          confirmation = match[0];
+          showClosingBanner();
+          lockInput();
+        }
+        sendToQualtrics(); // save state after every assistant reply
+        if (!completed) { elSend.disabled = false; elInput.focus(); }
+      })
+      .catch(function () {
+        hideTyping();
+        addBubble("Le service est momentanément indisponible. Veuillez réessayer dans un instant.", "bot");
+        elSend.disabled = false;
+      });
+  }
+
+  // ---- participant sends a message ----
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (completed) return;
+    var text = elInput.value.trim();
+    if (!text) return;
+    elInput.value = "";
+    autoresize();
+    addBubble(text, "user");
+    participantTurns.push(text);
+    messages.push({ role: "user", content: text });
+    callModel();
+  }
+
+  // ---- textarea autoresize + Enter-to-send ----
+  function autoresize() {
+    elInput.style.height = "auto";
+    elInput.style.height = Math.min(elInput.scrollHeight, 120) + "px";
+  }
+  elInput.addEventListener("input", autoresize);
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      elForm.requestSubmit ? elForm.requestSubmit() : handleSubmit(new Event("submit"));
+    }
+  });
+  elForm.addEventListener("submit", handleSubmit);
+
+  // ---- kick off: ask the model for Tour 1 ----
+  messages.push({ role: "user", content: "[DÉBUT]" });
+  callModel();
+})();

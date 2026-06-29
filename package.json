@@ -1,7 +1,7 @@
 {
-  "name": "chatbot-experiment",
+  "name": "warm-machines-chatbots",
   "version": "1.0.0",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.0"
-  }
+  "private": true,
+  "description": "Condition-specific municipal chatbots for the Warm Machines experiment (8 cells).",
+  "license": "UNLICENSED"
 }
