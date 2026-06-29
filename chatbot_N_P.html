@@ -4,7 +4,141 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AssistantMairie</title>
-<link rel="stylesheet" href="/assets/style.css">
+<style>
+/* Warm Machines — shared chatbot UI.
+   IMPORTANT: this stylesheet is identical for all 8 conditions.
+   The experimental manipulation is the LANGUAGE only; the visual
+   interface must be held constant across cells. Do not fork per group. */
+
+:root {
+  --wm-ink: #1f2430;
+  --wm-muted: #6b7280;
+  --wm-accent: #2e5a88;
+  --wm-bot-bg: #eef2f6;
+  --wm-user-bg: #2e5a88;
+  --wm-user-ink: #ffffff;
+  --wm-border: #d7dde5;
+  --wm-bg: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--wm-ink);
+}
+
+#wm-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 600px;
+  border: 1px solid var(--wm-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--wm-bg);
+}
+
+#wm-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f7f9fb;
+  border-bottom: 1px solid var(--wm-border);
+}
+.wm-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #34a853; flex: 0 0 auto;
+}
+.wm-title { font-weight: 600; font-size: 15px; }
+.wm-sub { color: var(--wm-muted); font-size: 12px; margin-left: 4px; }
+
+#wm-messages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wm-msg {
+  max-width: 80%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.wm-msg.bot {
+  align-self: flex-start;
+  background: var(--wm-bot-bg);
+  border-bottom-left-radius: 4px;
+}
+.wm-msg.user {
+  align-self: flex-end;
+  background: var(--wm-user-bg);
+  color: var(--wm-user-ink);
+  border-bottom-right-radius: 4px;
+}
+.wm-typing {
+  align-self: flex-start;
+  color: var(--wm-muted);
+  font-size: 13px;
+  font-style: italic;
+  padding: 4px 6px;
+}
+
+#wm-banner {
+  margin: 0 16px 10px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: #e7f4ea;
+  border: 1px solid #bfe0c7;
+  color: #1e5631;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.wm-hidden { display: none; }
+
+#wm-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--wm-border);
+  background: #fafbfc;
+}
+#wm-input {
+  flex: 1 1 auto;
+  resize: none;
+  border: 1px solid var(--wm-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  max-height: 120px;
+  outline: none;
+}
+#wm-input:focus { border-color: var(--wm-accent); }
+#wm-send {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 10px;
+  padding: 0 18px;
+  background: var(--wm-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#wm-send:disabled { opacity: .5; cursor: default; }
+
+</style>
 </head>
 <body>
 <div id="wm-app">
@@ -21,9 +155,189 @@
   </form>
 </div>
 <script>
-  window.WM_GROUPE = 1;
-  window.WM_SYSTEM_PROMPT = "Tu es AssistantMairie, assistant numérique du service de signalement de voirie de la mairie.\n\nRègles communes : chaque message fait entre 30 et 60 mots (jamais plus de 60). Respecte strictement la séquence de six tours. Aucun emoji. Ne mentionne jamais d’IA, de modèle ou d’entreprise. Ne promets aucun délai précis. Le nom de l’assistant est AssistantMairie. Le premier message reçu sera « [DÉBUT] » : réponds alors directement par le Tour 1, sans mentionner ce signal.\n\nRÈGLES ABSOLUES\nCollecte les informations nécessaires de façon neutre et factuelle. N’explique pas pourquoi chaque information est demandée. N’exprime ni empathie ni chaleur. Les réponses sont fonctionnelles et brèves.\n\nSÉQUENCE DE TOURS — respecte cet ordre strictement\nTour 1 : Demande la nature du problème signalé.\nTour 2 : Demande la localisation précise du problème (adresse ou point de repère).\nTour 3 : Demande depuis combien de temps le problème est présent.\nTour 4 : Demande si des incidents ont déjà eu lieu en lien avec ce problème.\nTour 5 : Demande le nom et les coordonnées (email ou téléphone).\nTour 6 : Génère un numéro de confirmation au format CM-G1-XXXX, où CM-G1 est fixe et XXXX correspond à 4 chiffres aléatoires que tu génères. Présente un résumé des informations collectées. Indique le numéro avec les mots exacts : « Votre numéro de confirmation est : CM-G1-XXXX ». Demande la confirmation de soumission.\n\nMOTS INTERDITS\nchaleureux, je comprends, empathie, désolé, disponible pour vous, rassurez-vous, je suis là, votre situation, ne vous inquiétez pas, vous n’êtes pas seul, conformément à, la procédure prévoit, il est requis, en vertu de.";
+  window.WM_GROUPE = 3;
+  window.WM_SYSTEM_PROMPT = "Tu es AssistantMairie, assistant numérique du service de signalement de voirie de la mairie. Ta priorité est la précision et la clarté des informations collectées pour traiter efficacement le signalement.\n\nRègles communes : chaque message fait entre 30 et 60 mots (jamais plus de 60). Respecte strictement la séquence de six tours. Aucun emoji. Ne mentionne jamais d’IA, de modèle ou d’entreprise. Ne promets aucun délai précis. Le nom de l’assistant est AssistantMairie. Le premier message reçu sera « [DÉBUT] » : réponds alors directement par le Tour 1, sans mentionner ce signal.\n\nCOMPOSANTE INFORMATIONNELLE — RÈGLES ABSOLUES\nCompréhensibilité : utilise un langage simple, clair et courant. Évite tout jargon administratif. Chaque message doit être précis et non ambigu.\nRéification : explique brièvement pourquoi chaque information est nécessaire et comment elle sera utilisée dans le traitement du signalement. Clarifie le cadre procédural à chaque étape de façon transparente et factuelle.\n\nSÉQUENCE DE TOURS — respecte cet ordre strictement\nTour 1 : explique brièvement comment fonctionne la procédure de signalement de voirie et pourquoi les informations demandées sont nécessaires. Demande la nature du problème.\nTour 2 : explique que la localisation précise est indispensable pour identifier l’équipe d’intervention compétente. Demande l’adresse ou le point de repère exact.\nTour 3 : explique que la durée du problème permet d’évaluer son niveau de priorité. Demande depuis combien de temps le problème est présent.\nTour 4 : explique que les incidents déjà survenus sont déterminants pour mobiliser les ressources appropriées. Demande si des incidents ont eu lieu.\nTour 5 : explique que les coordonnées sont nécessaires pour informer le citoyen du traitement de son signalement. Demande le nom et l’email ou le téléphone.\nTour 6 : Génère un numéro de confirmation au format CM-G3-XXXX, où CM-G3 est fixe et XXXX correspond à 4 chiffres aléatoires que tu génères. Présente un résumé structuré et précis. Indique le numéro avec les mots exacts : « Votre numéro de confirmation est : CM-G3-XXXX ». Précise brièvement la suite. Demande la confirmation.\n\nMOTS INTERDITS\nchaleureux, je comprends votre frustration, empathie, désolé, disponible pour vous, rassurez-vous, je suis là, votre situation, ce que vous vivez, ne vous inquiétez pas, vous n’êtes pas seul.";
 </script>
-<script src="/assets/app.js"></script>
+<script>
+/* Warm Machines — shared chatbot logic (identical for all 8 conditions).
+   Per-page, only window.WM_GROUPE and window.WM_SYSTEM_PROMPT differ.
+
+   What this does:
+   - Opens with Tour 1 automatically (sends a hidden "[DÉBUT]" trigger).
+   - Relays participant messages to the Netlify function /.netlify/functions/chat
+     which holds the API key server-side.
+   - Captures behavioural coproduction metrics (word count, turns, duration).
+   - Detects the confirmation number CM-G{n}-XXXX and marks the encounter complete.
+   - Sends data to the parent Qualtrics survey via postMessage after every
+     assistant reply, so partial progress is always saved (robust to abandonment).
+*/
+
+(function () {
+  "use strict";
+
+  var GROUPE = window.WM_GROUPE;
+  var SYSTEM_PROMPT = window.WM_SYSTEM_PROMPT;
+  var API_URL = "/.netlify/functions/chat";
+
+  // ---- state ----
+  var messages = [];          // full API history [{role, content}]
+  var participantTurns = [];   // only human-typed messages (for metrics)
+  var startTime = Date.now();
+  var completed = false;
+  var confirmation = "";
+  var CM_REGEX = /CM-G\d-\d{4}/; // confirmation pattern
+
+  // ---- DOM ----
+  var elMessages = document.getElementById("wm-messages");
+  var elForm = document.getElementById("wm-form");
+  var elInput = document.getElementById("wm-input");
+  var elSend = document.getElementById("wm-send");
+  var elBanner = document.getElementById("wm-banner");
+
+  // ---- helpers ----
+  function addBubble(text, who) {
+    var div = document.createElement("div");
+    div.className = "wm-msg " + who;
+    div.textContent = text;
+    elMessages.appendChild(div);
+    elMessages.scrollTop = elMessages.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    var div = document.createElement("div");
+    div.className = "wm-typing";
+    div.textContent = "AssistantMairie écrit\u2026";
+    div.id = "wm-typing";
+    elMessages.appendChild(div);
+    elMessages.scrollTop = elMessages.scrollHeight;
+  }
+  function hideTyping() {
+    var t = document.getElementById("wm-typing");
+    if (t) t.remove();
+  }
+
+  function countWords(s) {
+    var m = (s || "").trim().match(/\S+/g);
+    return m ? m.length : 0;
+  }
+
+  function metrics() {
+    var totalWords = participantTurns.reduce(function (a, t) { return a + countWords(t); }, 0);
+    var n = participantTurns.length;
+    return {
+      totalWords: totalWords,
+      numTurns: n,
+      meanWordsPerTurn: n ? Math.round((totalWords / n) * 100) / 100 : 0,
+      durationSeconds: Math.round((Date.now() - startTime) / 1000)
+    };
+  }
+
+  // Transcript excludes the hidden "[DÉBUT]" trigger so offline coding is clean.
+  function transcript() {
+    return messages.filter(function (m) { return m.content !== "[DÉBUT]"; });
+  }
+
+  function sendToQualtrics() {
+    var k = metrics();
+    var payload = {
+      type: "chatbot_data",
+      groupe: GROUPE,
+      chatbotConfirmation: confirmation,
+      totalWords: k.totalWords,
+      numTurns: k.numTurns,
+      meanWordsPerTurn: k.meanWordsPerTurn,
+      durationSeconds: k.durationSeconds,
+      // Placeholders to compute offline from the transcript (kept simple here):
+      voluntaryInfo: 0,
+      richnessScore: 0,
+      completed: completed,
+      abandoned: false,
+      transcript: JSON.stringify(transcript())
+    };
+    try { window.parent.postMessage(payload, "*"); } catch (e) { /* ignore */ }
+  }
+
+  function lockInput() {
+    elInput.disabled = true;
+    elSend.disabled = true;
+    elInput.placeholder = "Interaction terminée.";
+  }
+
+  function showClosingBanner() {
+    elBanner.textContent =
+      "Merci. Votre signalement est enregistré. Vous pouvez maintenant revenir au questionnaire " +
+      "et saisir votre numéro de confirmation : " + confirmation;
+    elBanner.classList.remove("wm-hidden");
+  }
+
+  // ---- core: call the model ----
+  function callModel() {
+    showTyping();
+    elSend.disabled = true;
+    return fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system: SYSTEM_PROMPT, messages: messages })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        hideTyping();
+        var text = (data && data.text) ? data.text : "Désolé, une erreur est survenue. Veuillez réessayer.";
+        messages.push({ role: "assistant", content: text });
+        addBubble(text, "bot");
+
+        // detect confirmation number
+        var match = text.match(CM_REGEX);
+        if (match && !completed) {
+          completed = true;
+          confirmation = match[0];
+          showClosingBanner();
+          lockInput();
+        }
+        sendToQualtrics(); // save state after every assistant reply
+        if (!completed) { elSend.disabled = false; elInput.focus(); }
+      })
+      .catch(function () {
+        hideTyping();
+        addBubble("Le service est momentanément indisponible. Veuillez réessayer dans un instant.", "bot");
+        elSend.disabled = false;
+      });
+  }
+
+  // ---- participant sends a message ----
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (completed) return;
+    var text = elInput.value.trim();
+    if (!text) return;
+    elInput.value = "";
+    autoresize();
+    addBubble(text, "user");
+    participantTurns.push(text);
+    messages.push({ role: "user", content: text });
+    callModel();
+  }
+
+  // ---- textarea autoresize + Enter-to-send ----
+  function autoresize() {
+    elInput.style.height = "auto";
+    elInput.style.height = Math.min(elInput.scrollHeight, 120) + "px";
+  }
+  elInput.addEventListener("input", autoresize);
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      elForm.requestSubmit ? elForm.requestSubmit() : handleSubmit(new Event("submit"));
+    }
+  });
+  elForm.addEventListener("submit", handleSubmit);
+
+  // ---- kick off: ask the model for Tour 1 ----
+  messages.push({ role: "user", content: "[DÉBUT]" });
+  callModel();
+})();
+
+</script>
 </body>
 </html>

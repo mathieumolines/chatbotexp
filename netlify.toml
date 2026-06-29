@@ -1,4 +1,3 @@
-# Warm Machines — Netlify configuration
 [build]
   publish = "."
   functions = "netlify/functions"
