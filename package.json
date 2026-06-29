@@ -1,7 +1,0 @@
-{
-  "name": "warm-machines-chatbots",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Condition-specific municipal chatbots for the Warm Machines experiment (8 cells).",
-  "license": "UNLICENSED"
-}
