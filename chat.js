@@ -1,7 +1,18 @@
 // Warm Machines — proxy sécurisé vers l'API Anthropic (aucune dépendance).
 exports.handler = async function (event) {
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "POST, OPTIONS"
+      },
+      body: ""
+    };
+  }
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return { statusCode: 405, headers: { "Access-Control-Allow-Origin": "*" }, body: "Method Not Allowed" };
   }
   try {
     const { system, messages } = JSON.parse(event.body || "{}");
@@ -25,14 +36,26 @@ exports.handler = async function (event) {
     });
     const data = await resp.json();
     if (data.error) {
-      return { statusCode: 502, body: JSON.stringify({ error: data.error.message || "API error" }) };
+      return {
+        statusCode: 502,
+        headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+        body: JSON.stringify({ error: data.error.message || "API error" })
+      };
     }
     const text = (data.content || [])
       .filter(function (b) { return b.type === "text"; })
       .map(function (b) { return b.text; })
       .join("\n");
-    return { statusCode: 200, headers: { "content-type": "application/json" }, body: JSON.stringify({ text: text }) };
+    return {
+      statusCode: 200,
+      headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text })
+    };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: String(err) }) };
+    return {
+      statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+      body: JSON.stringify({ error: String(err) })
+    };
   }
 };
